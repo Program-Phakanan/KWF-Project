@@ -41,7 +41,8 @@ const LoginPage = ({
         )}
 
         <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-          <p className="font-semibold mb-1">🔑 ข้อมูลเข้าสู่ระบบ:</p>
+          <p className="font-semibold mb-1">ข้อมูลเข้าสู่ระบบ:</p>
+         <p className="font-semibold mb-1 text-red-500">นี่แค่ตัว Test ยังไม่สามารถอัพโหลดรูปภาพและเพิ่มห้องได้ครับ:</p>
           <p>Username: <span className="font-mono font-bold">admin</span></p>
           <p>Password: <span className="font-mono font-bold">admin123</span></p>
         </div>
