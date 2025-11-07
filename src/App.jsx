@@ -9,7 +9,7 @@ import ManageBookings from './components/ManageBookings';
 import ManageDepartments from './components/ManageDepartments';
 import ManageBuildings from './components/ManageBuildings';
 import ManageEquipment from './components/ManageEquipment';
-import { initialRooms, initialBookings, departments, buildings, equipment } from './data/initialData';
+import { initialRooms, initialBookings, departments as initialDepartments, buildings as initialBuildings, equipment as initialEquipment } from './data/initialData';
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState('home');
@@ -19,6 +19,11 @@ const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const [rooms, setRooms] = useState(initialRooms);
   const [bookings, setBookings] = useState(initialBookings);
+  
+  // ✅ เพิ่ม state สำหรับ departments, buildings, equipment
+  const [departments, setDepartments] = useState(initialDepartments);
+  const [buildings, setBuildings] = useState(initialBuildings);
+  const [equipment, setEquipment] = useState(initialEquipment);
 
   // หน้า Login แยกออกมาต่างหาก
   if (currentPage === 'login') {
@@ -59,6 +64,7 @@ const App = () => {
             bookings={bookings}
             rooms={rooms}
             departments={departments}
+            equipment={equipment}
             setCurrentPage={setCurrentPage}
           />
         )}
@@ -91,16 +97,28 @@ const App = () => {
           />
         )}
         
+        {/* ✅ เพิ่ม setDepartments */}
         {currentPage === 'manage-departments' && isLoggedIn && (
-          <ManageDepartments departments={departments} />
+          <ManageDepartments 
+            departments={departments}
+            setDepartments={setDepartments}
+          />
         )}
         
+        {/* ✅ เพิ่ม setBuildings */}
         {currentPage === 'manage-buildings' && isLoggedIn && (
-          <ManageBuildings buildings={buildings} />
+          <ManageBuildings 
+            buildings={buildings}
+            setBuildings={setBuildings}
+          />
         )}
         
+        {/* ✅ เพิ่ม setEquipment */}
         {currentPage === 'manage-equipment' && isLoggedIn && (
-          <ManageEquipment equipment={equipment} />
+          <ManageEquipment 
+            equipment={equipment}
+            setEquipment={setEquipment}
+          />
         )}
       </div>
     </div>

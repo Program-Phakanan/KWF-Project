@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building, Users, Calendar, Clock } from 'lucide-react';
+import { Building, Users, Calendar, Clock, CheckCircle, X, AlertCircle, ArrowLeft } from 'lucide-react';
 import { isRoomAvailable } from '../utils/bookingUtils';
 import { validatePhoneNumber } from '../utils/roomUtils';
 
@@ -21,11 +21,54 @@ const RoomDetail = ({
     bookedBy: '',
     phone: ''
   });
+  const [alertModal, setAlertModal] = useState({ show: false, type: '', message: '' });
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const timeSlots = [
     '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', 
     '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'
   ];
+
+  // Calendar functions
+  const getDaysInMonth = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    return { daysInMonth, startingDayOfWeek, year, month };
+  };
+
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+
+  const handleDateSelect = (day) => {
+    const newDate = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+    newDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (newDate >= today) {
+      setSelectedDate(newDate);
+      setSelectedTimeSlots([]);
+      setShowCalendar(false);
+    }
+  };
+
+  const changeMonth = (direction) => {
+    const newMonth = new Date(calendarMonth);
+    newMonth.setMonth(newMonth.getMonth() + direction);
+    setCalendarMonth(newMonth);
+  };
+
+  const showAlert = (type, message) => {
+    setAlertModal({ show: true, type, message });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({ show: false, type: '', message: '' });
+  };
 
   const dateStr = selectedDate.toISOString().split('T')[0];
   const dayBookings = bookings.filter(b => b.roomId === selectedRoom.id && b.date === dateStr);
@@ -36,10 +79,21 @@ const RoomDetail = ({
   };
 
   const toggleTimeSlot = (time) => {
-    const slotDateTime = new Date(dateStr + 'T' + time);
-    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDay = new Date(selectedDate);
+    selectedDay.setHours(0, 0, 0, 0);
     
-    if (slotDateTime < now || !isSlotAvailable(time)) return;
+    if (selectedDay.getTime() === today.getTime()) {
+      const now = new Date();
+      const [hours, minutes] = time.split(':').map(Number);
+      const slotTime = new Date();
+      slotTime.setHours(hours, minutes, 0, 0);
+      
+      if (slotTime < now || !isSlotAvailable(time)) return;
+    } else if (!isSlotAvailable(time)) {
+      return;
+    }
     
     if (selectedTimeSlots.includes(time)) {
       setSelectedTimeSlots(selectedTimeSlots.filter(t => t !== time));
@@ -61,37 +115,35 @@ const RoomDetail = ({
 
   const handleQuickBook = () => {
     if (selectedTimeSlots.length === 0) {
-      alert('⚠️ กรุณาเลือกช่วงเวลาอย่างน้อย 1 ช่อง');
+      showAlert('error', 'กรุณาเลือกช่วงเวลาอย่างน้อย 1 ช่อง');
       return;
     }
     if (!bookingForm.title || !bookingForm.bookedBy || !bookingForm.phone) {
-      alert('⚠️ กรุณากรอกหัวข้อการประชุม ชื่อผู้จอง และเบอร์โทรศัพท์');
+      showAlert('error', 'กรุณากรอกหัวข้อการประชุม ชื่อผู้จอง และเบอร์โทรศัพท์');
       return;
     }
 
     if (!validatePhoneNumber(bookingForm.phone)) {
-      alert('⚠️ กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (เช่น 081-234-5678)');
+      showAlert('error', 'กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง (เช่น 081-234-5678)');
       return;
     }
 
     const timeRange = getBookingTimeRange();
     const sortedSlots = [...selectedTimeSlots].sort();
     
-    // ตรวจสอบว่าเวลาติดกัน
     for (let i = 0; i < sortedSlots.length - 1; i++) {
       const currentHour = parseInt(sortedSlots[i].split(':')[0]);
       const nextHour = parseInt(sortedSlots[i + 1].split(':')[0]);
       if (nextHour - currentHour > 1) {
-        alert('⚠️ กรุณาเลือกช่วงเวลาที่ติดกัน');
+        showAlert('error', 'กรุณาเลือกช่วงเวลาที่ติดกัน');
         return;
       }
     }
 
-    // ตรวจสอบว่าห้องว่างทุกช่วง
     for (let slot of sortedSlots) {
       const endTime = parseInt(slot.split(':')[0]) + 1 + ':00';
       if (!isRoomAvailable(bookings, selectedRoom.id, dateStr, slot, endTime)) {
-        alert('⚠️ บางช่วงเวลาที่เลือกมีการจองแล้ว');
+        showAlert('error', 'บางช่วงเวลาที่เลือกมีการจองแล้ว');
         return;
       }
     }
@@ -108,279 +160,545 @@ const RoomDetail = ({
     };
 
     setBookings([...bookings, newBooking]);
-    alert('✓ จองห้องประชุมสำเร็จ!');
+    showAlert('success', 'จองห้องประชุมสำเร็จ!');
     setBookingForm({ title: '', department: '', attendees: '', bookedBy: '', phone: '' });
     setSelectedTimeSlots([]);
   };
 
   return (
-    <div className="space-y-6">
-      <button
-        onClick={() => setCurrentPage('home')}
-        className="text-blue-500 hover:text-blue-700 flex items-center font-medium"
-      >
-        ← กลับหน้าแรก
-      </button>
+    <>
+      {/* Background Image - Full Screen */}
+      <div 
+        className="fixed inset-0 top-0 z-0"
+        style={{
+          backgroundImage: 'url(./public/img/background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed'
+        }}
+      />
+      
+      {/* Blur Overlay */}
+      <div 
+        className="fixed inset-0 top-16 pointer-events-none z-0"
+        style={{
+          backdropFilter: 'blur(6px)'
+        }}
+      />
 
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">{selectedRoom.name}</h2>
-        
-        {selectedRoom.image && (
-          <div className="mb-6">
-            <div className="relative h-64 bg-gray-200 rounded-lg overflow-hidden">
-              <img 
-                src={selectedRoom.image} 
-                alt={selectedRoom.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'https://via.placeholder.com/800x400?text=Meeting+Room';
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-gray-600 mb-2 flex items-center">
-              <Building className="w-5 h-5 inline mr-2 text-blue-500" />
-              {selectedRoom.building} ชั้น {selectedRoom.floor}
-            </p>
-            <p className="text-gray-600 mb-2 flex items-center">
-              <Users className="w-5 h-5 inline mr-2 text-green-500" />
-              ความจุ: {selectedRoom.capacity} คน
-            </p>
-          </div>
-          <div>
-            <p className="text-gray-600 mb-2 font-semibold">อุปกรณ์:</p>
-            <ul className="list-disc list-inside text-gray-600">
-              {selectedRoom.equipment.map((eq, idx) => (
-                <li key={idx}>{eq}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">เลือกวันที่</h3>
-        <input
-          type="date"
-          value={dateStr}
-          onChange={(e) => {
-            setSelectedDate(new Date(e.target.value));
-            setSelectedTimeSlots([]);
-          }}
-          min={new Date().toISOString().split('T')[0]}
-          className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-auto focus:ring-2 focus:ring-blue-500"
-        />
-        <p className="text-sm text-gray-500 mt-2">
-          ⚠️ เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป (ไม่สามารถจองย้อนหลังได้)
-        </p>
-      </div>
-
-      <div className="bg-white p-6 rounded-lg shadow-lg">
-        <h3 className="text-xl font-semibold mb-4 text-gray-800">
-          ตารางการจอง - {new Date(selectedDate).toLocaleDateString('th-TH', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            weekday: 'long'
-          })}
-        </h3>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          {timeSlots.map(time => {
-            const available = isSlotAvailable(time);
-            const booking = dayBookings.find(b => time >= b.startTime && time < b.endTime);
-            const isSelected = selectedTimeSlots.includes(time);
-            
-            const slotDateTime = new Date(dateStr + 'T' + time);
-            const now = new Date();
-            const isPastTime = slotDateTime < now;
-            const isAvailableAndFuture = available && !isPastTime;
-            
-            return (
-              <button
-                key={time}
-                onClick={() => isAvailableAndFuture && toggleTimeSlot(time)}
-                disabled={!isAvailableAndFuture}
-                className={'p-3 rounded-lg text-sm font-medium transition-all ' + (
-                  isAvailableAndFuture
-                    ? isSelected
-                      ? 'bg-blue-500 text-white ring-2 ring-blue-300 shadow-md'
-                      : 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : isPastTime
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-red-100 text-red-700 cursor-not-allowed'
-                )}
-                title={booking ? 'จองโดย: ' + booking.title : isPastTime ? 'เวลานี้ผ่านไปแล้ว' : ''}
-              >
-                {time}
-                <div className="text-xs mt-1">
-                  {isPastTime 
-                    ? '⏰ ผ่านแล้ว' 
-                    : available 
-                    ? (isSelected ? '✓ เลือกแล้ว' : '○ ว่าง') 
-                    : '✗ ไม่ว่าง'}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {selectedTimeSlots.length > 0 && (
-          <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <p className="text-sm font-semibold text-blue-700 mb-2">
-              ช่วงเวลาที่เลือก: {selectedTimeSlots.length} ช่อง
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {selectedTimeSlots.map(time => (
-                <span key={time} className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm flex items-center shadow-sm">
-                  {time}
+      {/* Content */}
+      <div className="relative z-10 pt-20 pb-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="space-y-4">
+          {/* Modern Alert Modal */}
+          {alertModal.show && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 backdrop-blur-sm animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm mx-4 animate-in zoom-in duration-300">
+                <div className="text-center">
+                  <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                    alertModal.type === 'success' 
+                      ? 'bg-gradient-to-br from-green-400 to-green-600' 
+                      : 'bg-gradient-to-br from-red-400 to-red-600'
+                  }`}>
+                    {alertModal.type === 'success' ? (
+                      <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                    ) : (
+                      <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
+                    )}
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                    {alertModal.type === 'success' ? 'สำเร็จ!' : 'แจ้งเตือน'}
+                  </h3>
+                  <p className="text-gray-600 text-sm sm:text-base mb-6">{alertModal.message}</p>
                   <button
-                    onClick={() => toggleTimeSlot(time)}
-                    className="ml-2 hover:bg-blue-600 rounded-full w-5 h-5 flex items-center justify-center font-bold"
+                    onClick={closeAlert}
+                    className={`w-full py-3 rounded-lg font-semibold text-white transition-colors ${
+                      alertModal.type === 'success'
+                        ? 'bg-green-500 hover:bg-green-600'
+                        : 'bg-red-500 hover:bg-red-600'
+                    }`}
                   >
-                    ×
+                    ตรวจสอบ
                   </button>
-                </span>
-              ))}
+                </div>
+              </div>
             </div>
-            {getBookingTimeRange() && (
-              <p className="text-sm text-blue-600 mt-2 font-medium">
-                📅 รวมเวลา: {getBookingTimeRange().startTime} - {getBookingTimeRange().endTime} น.
-                ({selectedTimeSlots.length} ชั่วโมง)
+          )}
+
+          {/* Back Button */}
+          <button
+            onClick={() => setCurrentPage('home')}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-md hover:shadow-lg font-medium group"
+          >
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            กลับหน้าแรก
+          </button>
+
+          {/* Room Info Card - Modern Design */}
+          <div className="bg-gradient-to-br from-white to-blue-50 p-4 sm:p-6 rounded-2xl shadow-xl border border-blue-100">
+            <h2 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-6 text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              {selectedRoom.name}
+            </h2>
+            
+            {selectedRoom.image && (
+              <div className="mb-4 sm:mb-6">
+                <div className="relative rounded-2xl overflow-hidden shadow-lg group">
+                  <div className="aspect-video bg-gray-200">
+                    <img 
+                      src={selectedRoom.image} 
+                      alt={selectedRoom.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/800x450?text=Meeting+Room';
+                      }}
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm">
+                  <div className="bg-blue-100 p-2 rounded-lg">
+                    <Building className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">สถานที่</p>
+                    <p className="text-gray-800 font-medium text-sm">{selectedRoom.building} ชั้น {selectedRoom.floor}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm">
+                  <div className="bg-green-100 p-2 rounded-lg">
+                    <Users className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">ความจุ</p>
+                    <p className="text-gray-800 font-medium text-sm">{selectedRoom.capacity} คน</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm">
+                <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
+                  อุปกรณ์ในห้อง
+                </p>
+                <ul className="space-y-1.5 sm:space-y-2">
+                  {selectedRoom.equipment.map((eq, idx) => (
+                    <li key={idx} className="text-gray-600 text-xs sm:text-sm flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                      {eq}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Date Selection Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">เลือกวันที่</h3>
+            </div>
+            
+            {/* Selected Date Display - Compact */}
+            <div 
+              onClick={() => setShowCalendar(!showCalendar)}
+              className="cursor-pointer border-2 border-gray-300 hover:border-blue-500 rounded-xl px-4 py-2.5 w-full md:w-auto inline-flex items-center justify-between gap-3 transition-all bg-white group"
+            >
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-500" />
+                <span className="font-medium text-gray-700 text-sm">
+                  {selectedDate.toLocaleDateString('th-TH', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                  })}
+                </span>
+              </div>
+              <div className={`transition-transform ${showCalendar ? 'rotate-180' : ''}`}>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Modern Calendar */}
+            {showCalendar && (
+              <div className="mt-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border-2 border-blue-200 shadow-xl animate-in fade-in zoom-in duration-200">
+                {/* Calendar Header */}
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <button
+                    onClick={() => changeMonth(-1)}
+                    className="p-2 sm:p-3 hover:bg-white rounded-xl transition-colors shadow-sm"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <h4 className="text-base sm:text-xl font-bold text-gray-800">
+                    {calendarMonth.toLocaleDateString('th-TH', { year: 'numeric', month: 'long' })}
+                  </h4>
+                  <button
+                    onClick={() => changeMonth(1)}
+                    className="p-2 sm:p-3 hover:bg-white rounded-xl transition-colors shadow-sm"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Day Names */}
+                <div className="grid grid-cols-7 gap-2 sm:gap-3 mb-2 sm:mb-3">
+                  {['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'].map(day => (
+                    <div key={day} className="text-center text-sm sm:text-base font-bold text-gray-700 py-1 sm:py-2">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div className="grid grid-cols-7 gap-2 sm:gap-3">
+                  {(() => {
+                    const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(calendarMonth);
+                    const days = [];
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    
+                    for (let i = 0; i < startingDayOfWeek; i++) {
+                      days.push(<div key={`empty-${i}`} className="p-2 sm:p-3"></div>);
+                    }
+                    
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const date = new Date(year, month, day);
+                      date.setHours(0, 0, 0, 0);
+                      const isSelected = selectedDate.getDate() === day && 
+                                       selectedDate.getMonth() === month && 
+                                       selectedDate.getFullYear() === year;
+                      const isPast = date < today;
+                      const isToday = date.getTime() === today.getTime();
+                      
+                      days.push(
+                        <button
+                          key={day}
+                          onClick={() => !isPast && handleDateSelect(day)}
+                          disabled={isPast}
+                          className={`p-2 sm:p-3 rounded-xl text-sm sm:text-base font-semibold transition-all hover:scale-110 ${
+                            isSelected
+                              ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg ring-2 ring-blue-300 scale-105'
+                              : isToday
+                              ? 'bg-white text-blue-600 ring-2 ring-blue-400 font-bold shadow-md'
+                              : isPast
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'bg-white text-gray-700 hover:bg-blue-100 hover:text-blue-600 shadow-sm hover:shadow-md'
+                          }`}
+                        >
+                          {day}
+                        </button>
+                      );
+                    }
+                    
+                    return days;
+                  })()}
+                </div>
+
+                {/* Today Button */}
+                <button
+                  onClick={() => {
+                    const today = new Date();
+                    setCalendarMonth(today);
+                    setSelectedDate(today);
+                    setSelectedTimeSlots([]);
+                    setShowCalendar(false);
+                  }}
+                  className="w-full mt-4 sm:mt-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-2.5 sm:py-3 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-bold shadow-lg hover:shadow-xl text-sm sm:text-base"
+                >
+                  วันนี้
+                </button>
+              </div>
+            )}
+            
+            <div className="mt-3 flex items-start gap-2 bg-amber-50 p-3 rounded-lg border border-amber-200">
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs sm:text-sm text-amber-800">
+                เลือกวันที่ตั้งแต่วันนี้เป็นต้นไป (ไม่สามารถจองย้อนหลังได้)
               </p>
+            </div>
+          </div>
+
+          {/* Time Slots Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Clock className="w-5 h-5 text-purple-600" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">
+                ตารางการจอง
+              </h3>
+            </div>
+            <p className="text-xs sm:text-sm text-gray-600 mb-4">
+              {new Date(selectedDate).toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+              })}
+            </p>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-3 mb-4 sm:mb-6">
+              {timeSlots.map(time => {
+                const available = isSlotAvailable(time);
+                const booking = dayBookings.find(b => time >= b.startTime && time < b.endTime);
+                const isSelected = selectedTimeSlots.includes(time);
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const selectedDay = new Date(selectedDate);
+                selectedDay.setHours(0, 0, 0, 0);
+                
+                let isPastTime = false;
+                if (selectedDay.getTime() === today.getTime()) {
+                  const now = new Date();
+                  const [hours, minutes] = time.split(':').map(Number);
+                  const slotTime = new Date();
+                  slotTime.setHours(hours, minutes, 0, 0);
+                  isPastTime = slotTime < now;
+                }
+                
+                const isAvailableAndFuture = available && !isPastTime;
+                
+                return (
+                  <button
+                    key={time}
+                    onClick={() => isAvailableAndFuture && toggleTimeSlot(time)}
+                    disabled={!isAvailableAndFuture}
+                    className={'p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-medium transition-all transform hover:scale-105 ' + (
+                      isAvailableAndFuture
+                        ? isSelected
+                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-2 ring-blue-300 shadow-lg'
+                          : 'bg-gradient-to-br from-green-50 to-green-100 text-green-700 hover:from-green-100 hover:to-green-200 border-2 border-green-200'
+                        : isPastTime
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-2 border-gray-200'
+                        : 'bg-gradient-to-br from-red-50 to-red-100 text-red-700 cursor-not-allowed border-2 border-red-200'
+                    )}
+                    title={booking ? 'จองโดย: ' + booking.title : isPastTime ? 'เวลานี้ผ่านไปแล้ว' : ''}
+                  >
+                    <div className="font-bold text-sm sm:text-base">{time}</div>
+                    <div className="text-xs mt-1 font-medium">
+                      {isPastTime 
+                        ? 'ผ่านเวลานี้ไปแล้ว' 
+                        : available 
+                        ? (isSelected ? '✓ เลือกแล้ว' : '◯ ว่าง') 
+                        : '✗ ไม่ว่าง'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected Time Slots Display */}
+            {selectedTimeSlots.length > 0 && (
+              <div className="mb-4 sm:mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-5 rounded-xl border-2 border-blue-200 shadow-sm">
+                <p className="text-xs sm:text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ช่วงเวลาที่เลือก: {selectedTimeSlots.length} ช่อง
+                </p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedTimeSlots.map(time => (
+                    <span key={time} className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm flex items-center shadow-md hover:shadow-lg transition-shadow">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {time}
+                      <button
+                        onClick={() => toggleTimeSlot(time)}
+                        className="ml-2 hover:bg-blue-700 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-bold transition-colors"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                {getBookingTimeRange() && (
+                  <div className="flex items-center gap-2 bg-white p-2 sm:p-3 rounded-lg">
+                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                    <p className="text-xs sm:text-sm text-blue-800 font-medium">
+                      รวมเวลา: {getBookingTimeRange().startTime} - {getBookingTimeRange().endTime} น.
+                      <span className="ml-2 text-blue-600">({selectedTimeSlots.length} ชั่วโมง)</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Existing Bookings Display */}
+            {dayBookings.length > 0 && (
+              <div className="mt-4 sm:mt-6 border-t-2 border-gray-200 pt-4 sm:pt-6">
+                <h4 className="font-semibold mb-4 text-sm sm:text-base text-gray-800 flex items-center gap-2">
+                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                  การจองในวันนี้
+                </h4>
+                <div className="space-y-3">
+                  {dayBookings.map(booking => (
+                    <div key={booking.id} className="bg-gradient-to-r from-red-50 to-pink-50 p-3 sm:p-4 rounded-xl border-l-4 border-red-500 shadow-sm hover:shadow-md transition-shadow">
+                      <p className="font-semibold text-gray-800 text-sm sm:text-lg mb-2">{booking.title}</p>
+                      <div className="space-y-1 text-xs sm:text-sm text-gray-600">
+                        <p className="flex items-center gap-2">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                          <span className="font-medium">เวลา:</span> {booking.startTime} - {booking.endTime}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Users className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                          <span className="font-medium">ผู้จอง:</span> {booking.bookedBy} | โทร: {booking.phone}
+                        </p>
+                        {booking.department && (
+                          <p className="flex items-center gap-2">
+                            <Building className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                            <span className="font-medium">แผนก:</span> {booking.department}
+                          </p>
+                        )}
+                        {booking.attendees && (
+                          <p className="flex items-center gap-2">
+                            <Users className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
+                            <span className="font-medium">ผู้เข้าร่วม:</span> {booking.attendees} คน
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-        )}
 
-        {dayBookings.length > 0 && (
-          <div className="mt-6 border-t pt-4">
-            <h4 className="font-semibold mb-3 text-gray-800">การจองในวันนี้:</h4>
-            <div className="space-y-2">
-             {dayBookings.map(booking => (
-                <div key={booking.id} className="bg-red-50 p-3 rounded-lg border-l-4 border-red-500">
-                  <p className="font-semibold text-gray-800">{booking.title}</p>
-                  <p className="text-sm text-gray-600">
-                    เวลา: {booking.startTime} - {booking.endTime}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    ผู้จอง: {booking.bookedBy} | โทร: {booking.phone}
-                  </p>
-                  {booking.department && (
-                    <p className="text-sm text-gray-600">
-                      แผนก: {booking.department}
-                    </p>
-                  )}
-                  {booking.attendees && (
-                    <p className="text-sm text-gray-600">
-                      <Users className="w-4 h-4 inline mr-1" />
-                      ผู้เข้าร่วม: {booking.attendees} คน
-                    </p>
-                  )}
+          {/* Booking Form */}
+          {selectedTimeSlots.length > 0 && (
+            <div className="bg-gradient-to-br from-white to-purple-50 p-4 sm:p-6 rounded-2xl shadow-xl border border-purple-100">
+              <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-800 flex items-center gap-3">
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+                ฟอร์มจองห้อง
+              </h3>
+              
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 text-white shadow-lg">
+                <p className="text-xs sm:text-sm font-semibold mb-1 flex items-center gap-2">
+                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                  ช่วงเวลาที่เลือก
+                </p>
+                <p className="text-base sm:text-lg font-bold">
+                  {getBookingTimeRange().startTime} - {getBookingTimeRange().endTime} น.
+                  <span className="text-xs sm:text-sm ml-2 opacity-90">({selectedTimeSlots.length} ชั่วโมง)</span>
+                </p>
+              </div>
+              
+              <div className="space-y-4 sm:space-y-5">
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    หัวข้อการประชุม
+                  </label>
+                  <input
+                    type="text"
+                    value={bookingForm.title}
+                    onChange={(e) => setBookingForm({...bookingForm, title: e.target.value})}
+                    className="w-full border-2 border-gray-300 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                    placeholder="ระบุหัวข้อการประชุม"
+                  />
+                </div>
 
-      {selectedTimeSlots.length > 0 && (
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-xl font-semibold mb-4 text-gray-800">ฟอร์มจองห้อง</h3>
-          <div className="bg-blue-50 p-3 rounded-lg mb-4 border border-blue-200">
-            <p className="text-sm font-semibold text-blue-700">
-              เวลาที่เลือก: {getBookingTimeRange().startTime} - {getBookingTimeRange().endTime} น.
-              ({selectedTimeSlots.length} ชั่วโมง)
-            </p>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">หัวข้อการประชุม *</label>
-              <input
-                type="text"
-                value={bookingForm.title}
-                onChange={(e) => setBookingForm({...bookingForm, title: e.target.value})}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                placeholder="ระบุหัวข้อการประชุม"
-              />
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    ชื่อผู้จอง
+                  </label>
+                  <input
+                    type="text"
+                    value={bookingForm.bookedBy}
+                    onChange={(e) => setBookingForm({...bookingForm, bookedBy: e.target.value})}
+                    className="w-full border-2 border-gray-300 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                    placeholder="ระบุชื่อผู้จอง"
+                  />
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">ชื่อผู้จอง *</label>
-              <input
-                type="text"
-                value={bookingForm.bookedBy}
-                onChange={(e) => setBookingForm({...bookingForm, bookedBy: e.target.value})}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                placeholder="ระบุชื่อผู้จอง"
-              />
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-gray-700 flex items-center gap-2">
+                    <span className="text-red-500">*</span>
+                    เบอร์โทรศัพท์
+                  </label>
+                  <input
+                    type="tel"
+                    value={bookingForm.phone}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setBookingForm({...bookingForm, phone: value});
+                    }}
+                    onBlur={(e) => {
+                      let value = e.target.value.replace(/[^0-9-]/g, '');
+                      if (value.length === 10 && !value.includes('-')) {
+                        value = value.slice(0, 3) + '-' + value.slice(3, 6) + '-' + value.slice(6);
+                      }
+                      setBookingForm({...bookingForm, phone: value});
+                    }}
+                    className="w-full border-2 border-gray-300 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                    placeholder="081-234-5678 หรือ 0812345678"
+                    maxLength="12"
+                  />
+                  <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    พิมพ์เบอร์โทร 10 หลัก หรือพิมพ์แบบมีขีด
+                  </p>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">เบอร์โทรศัพท์ *</label>
-              <input
-                type="tel"
-                value={bookingForm.phone}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setBookingForm({...bookingForm, phone: value});
-                }}
-                onBlur={(e) => {
-                  let value = e.target.value.replace(/[^0-9-]/g, '');
-                  if (value.length === 10 && !value.includes('-')) {
-                    value = value.slice(0, 3) + '-' + value.slice(3, 6) + '-' + value.slice(6);
-                  }
-                  setBookingForm({...bookingForm, phone: value});
-                }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                placeholder="081-234-5678 หรือ 0812345678"
-                maxLength="12"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                พิมพ์เบอร์โทร 10 หลัก หรือพิมพ์แบบมีขีด
-              </p>
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-gray-700">
+                    แผนก/หน่วยงาน
+                  </label>
+                  <select
+                    value={bookingForm.department}
+                    onChange={(e) => setBookingForm({...bookingForm, department: e.target.value})}
+                    className="w-full border-2 border-gray-300 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                  >
+                    <option value="">เลือกแผนก</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.name}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">แผนก/หน่วยงาน</label>
-              <select
-                value={bookingForm.department}
-                onChange={(e) => setBookingForm({...bookingForm, department: e.target.value})}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">เลือกแผนก</option>
-                {departments.map(dept => (
-                  <option key={dept.id} value={dept.name}>{dept.name}</option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-semibold mb-2 text-gray-700">
+                    จำนวนผู้เข้าร่วม
+                  </label>
+                  <input
+                    type="number"
+                    value={bookingForm.attendees}
+                    onChange={(e) => setBookingForm({...bookingForm, attendees: e.target.value})}
+                    className="w-full border-2 border-gray-300 rounded-xl px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm sm:text-base"
+                    placeholder="จำนวนคน"
+                    max={selectedRoom.capacity}
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    ความจุห้อง: {selectedRoom.capacity} คน
+                  </p>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-700">จำนวนผู้เข้าร่วม</label>
-              <input
-                type="number"
-                value={bookingForm.attendees}
-                onChange={(e) => setBookingForm({...bookingForm, attendees: e.target.value})}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                placeholder="จำนวนคน"
-                max={selectedRoom.capacity}
-              />
+                <button
+                  onClick={handleQuickBook}
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3 sm:py-4 rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all font-bold shadow-lg hover:shadow-xl transform hover:scale-[1.02] flex items-center justify-center gap-2 text-sm sm:text-base"
+                >
+                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  ยืนยันการจอง
+                </button>
+              </div>
             </div>
-
-            <button
-              onClick={handleQuickBook}
-              className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md"
-            >
-              ✓ ยืนยันการจอง
-            </button>
-          </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 };
 
