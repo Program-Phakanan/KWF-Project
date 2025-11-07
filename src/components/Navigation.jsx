@@ -82,7 +82,7 @@ const Navigation = ({
         <div className="flex justify-between items-center h-14 sm:h-16">
           
           <div className="flex items-center cursor-pointer" onClick={() => handleNavigation('home')}>
-            <img src="./public/img/kwf.png" alt="Logo" className="h-8 sm:h-10 w-auto mr-2 sm:mr-3 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}img/kwf.png`} alt="Logo" className="h-8 sm:h-10 w-auto mr-2 sm:mr-3 object-contain" />
             <span className="text-base sm:text-xl font-bold text-gray-800">ระบบจองห้องประชุม</span>
           </div>
           
