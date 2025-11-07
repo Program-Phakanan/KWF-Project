@@ -32,7 +32,7 @@ const LoginPage = ({
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ 
-          backgroundImage: 'url(./public/img/background.jpg)',
+          backgroundImage: `url(${import.meta.env.BASE_URL}img/background.jpg)`,
           filter: 'blur(4px)',
           transform: 'scale(1.05)'
         }}
@@ -64,7 +64,7 @@ const LoginPage = ({
       <div className="bg-white bg-opacity-95 backdrop-blur-sm p-6 sm:p-8 rounded-lg shadow-xl w-full max-w-md relative z-10">
         <div className="text-center mb-6">
           <div className="flex items-center justify-center mx-auto mb-4">
-            <img src="./public/img/kwf.png" alt="Logo" className="h-16 sm:h-20 w-auto object-contain" />
+            <img src={`${import.meta.env.BASE_URL}img/kwf.png`} alt="Logo" className="h-16 sm:h-20 w-auto object-contain" />
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
           <p className="text-gray-600 text-xs sm:text-sm mt-2">ระบบจองห้องประชุม (สำหรับผู้ดูแลระบบ)</p>

@@ -104,7 +104,7 @@ const ManageRooms = ({ rooms = [], setRooms = () => {} }) => {
       <div 
         className="fixed inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: "url(./public/img/background.jpg)",
+          backgroundImage: `url(${import.meta.env.BASE_URL}img/background.jpg)`,
           filter: "brightness(0.95)",
           zIndex: 0
         }}

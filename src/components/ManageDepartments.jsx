@@ -87,7 +87,7 @@ const ManageDepartments = ({
       <div 
         className="fixed inset-0 top-0 z-0"
         style={{
-          backgroundImage: 'url(./public/img/background.jpg)',
+          backgroundImage: `url(${import.meta.env.BASE_URL}img/background.jpg)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
