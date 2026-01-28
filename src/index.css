@@ -70,3 +70,26 @@ a,
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Custom Scrollbar Colors */
+.scrollbar-blue::-webkit-scrollbar-thumb {
+  background: rgba(96, 165, 250, 0.5);
+  /* blue-400 */
+}
+
+.scrollbar-blue::-webkit-scrollbar-thumb:hover {
+  background: rgba(96, 165, 250, 0.8);
+}
+
+.scrollbar-purple::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  /* violet-500 */
+}
+
+.scrollbar-purple::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.8);
+}
+
+.scrollbar-transparent::-webkit-scrollbar-track {
+  background: transparent;
+}

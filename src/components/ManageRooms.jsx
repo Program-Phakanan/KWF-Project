@@ -317,7 +317,7 @@ const ManageRooms = ({ rooms = [], setRooms = () => { } }) => {
                     alt={room.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/400x300?text=Meeting+Room';
+                      e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='20' fill='%2364748b'%3EMeeting Room%3C/text%3E%3C/svg%3E";
                     }}
                   />
                 ) : (

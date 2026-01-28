@@ -2,22 +2,22 @@ import React from 'react';
 import { Calendar, Clock, Users, Building, TrendingUp, BarChart3, Package } from 'lucide-react';
 import { getStatistics } from '../utils/bookingUtils';
 
-const AdminDashboard = ({ 
-  bookings, 
-  rooms, 
+const AdminDashboard = ({
+  bookings,
+  rooms,
   departments,
   equipment,
-  setCurrentPage 
+  setCurrentPage
 }) => {
   const stats = getStatistics(bookings, rooms, departments);
-  
+
   // คำนวณจำนวนอุปกรณ์ทั้งหมด
   const totalEquipment = equipment ? equipment.reduce((sum, eq) => sum + eq.quantity, 0) : 0;
 
   return (
     <>
       {/* Background Image - Full Screen */}
-      <div 
+      <div
         className="fixed inset-0 z-0"
         style={{
           backgroundImage: `url(${import.meta.env.BASE_URL}img/background.jpg)`,
@@ -27,9 +27,9 @@ const AdminDashboard = ({
           backgroundAttachment: 'fixed'
         }}
       />
-      
+
       {/* Blur Overlay */}
-      <div 
+      <div
         className="fixed inset-0 pointer-events-none z-0"
         style={{
           backdropFilter: 'blur(6px)'
@@ -38,9 +38,9 @@ const AdminDashboard = ({
 
       {/* Content Container */}
       <div className="relative z-10 h-[calc(100vh-4rem)] overflow-hidden">
-        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-4 overflow-y-auto scrollbar-thin">
+        <div className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-10 pb-4 overflow-y-auto scrollbar-purple scrollbar-transparent">
           <div className="space-y-4 pb-4">
-            
+
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 sm:p-6 rounded-xl shadow-lg">
               <h1 className="text-2xl sm:text-3xl font-bold mb-2">แดชบอร์ดผู้ดูแลระบบ</h1>
@@ -119,7 +119,7 @@ const AdminDashboard = ({
                           {new Date(date).toLocaleDateString('th-TH', { day: '2-digit', month: 'short' })}
                         </span>
                         <div className="flex-1 bg-gray-200 rounded-full h-6 ml-3">
-                          <div 
+                          <div
                             className="bg-gradient-to-r from-blue-500 to-blue-600 h-6 rounded-full flex items-center justify-end px-2 transition-all"
                             style={{ width: width + '%' }}
                           >
@@ -145,7 +145,7 @@ const AdminDashboard = ({
                       <div key={month} className="flex items-center">
                         <span className="text-xs sm:text-sm text-gray-600 w-20 sm:w-28 font-medium">{month}</span>
                         <div className="flex-1 bg-gray-200 rounded-full h-6 ml-3">
-                          <div 
+                          <div
                             className="bg-gradient-to-r from-green-500 to-green-600 h-6 rounded-full flex items-center justify-end px-2 transition-all"
                             style={{ width: width + '%' }}
                           >
@@ -201,22 +201,7 @@ const AdminDashboard = ({
         </div>
       </div>
 
-      {/* Custom Scrollbar Styles */}
-      <style jsx>{`
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 8px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: rgba(139, 92, 246, 0.5);
-          border-radius: 10px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: rgba(139, 92, 246, 0.8);
-        }
-      `}</style>
+
     </>
   );
 };

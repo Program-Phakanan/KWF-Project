@@ -14,9 +14,24 @@ import { getSession, onAuthStateChange } from './utils/auth';
 // import { initialRooms, initialBookings, departments as initialDepartments, buildings as initialBuildings, equipment as initialEquipment } from './data/initialData';
 
 const App = () => {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // อ่านค่าจาก localStorage หรือใช้ค่าเริ่มต้น
+  const [currentPage, setCurrentPage] = useState(() => {
+    return localStorage.getItem('lastPage') || 'home';
+  });
+
+  const [selectedRoom, setSelectedRoom] = useState(() => {
+    const saved = localStorage.getItem('selectedRoom');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const saved = localStorage.getItem('selectedDate');
+    return saved ? new Date(saved) : new Date();
+  });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -27,6 +42,34 @@ const App = () => {
   const [buildings, setBuildings] = useState([]);
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // บันทึกหน้าปัจจุบันลง localStorage ทุกครั้งที่เปลี่ยนหน้า
+  useEffect(() => {
+    if (currentPage) {
+      localStorage.setItem('lastPage', currentPage);
+    }
+
+    // Safety Check: ถ้าอยู่หน้ารายละเอียดห้องแต่ไม่มีข้อมูลห้อง ให้กลับหน้าแรก
+    if (currentPage === 'room-detail' && !selectedRoom) {
+      setCurrentPage('home');
+    }
+  }, [currentPage, selectedRoom]);
+
+  // บันทึกห้องที่เลือกห้องปัจจุบันลง localStorage
+  useEffect(() => {
+    if (selectedRoom) {
+      localStorage.setItem('selectedRoom', JSON.stringify(selectedRoom));
+    } else {
+      localStorage.removeItem('selectedRoom');
+    }
+  }, [selectedRoom]);
+
+  // บันทึกวันที่ที่เลือกปัจจุบันลง localStorage
+  useEffect(() => {
+    if (selectedDate) {
+      localStorage.setItem('selectedDate', selectedDate.toISOString());
+    }
+  }, [selectedDate]);
 
   // ตรวจสอบ Supabase session เมื่อโหลดหน้าเว็บ
   useEffect(() => {
@@ -64,6 +107,7 @@ const App = () => {
       } else if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false);
         setCurrentUser(null);
+        setCurrentPage('login'); // เด้งไปหน้า Login เมื่อ Logout
       }
     });
 
@@ -79,7 +123,14 @@ const App = () => {
       try {
         // ดึงข้อมูลห้องประชุม
         const { data: roomsData, error: roomsError } = await fetchData('rooms');
-        if (roomsData) setRooms(roomsData);
+        if (roomsData) {
+          // Map DB snake_case to App expected keys (image_url -> image)
+          const formattedRooms = roomsData.map(room => ({
+            ...room,
+            image: room.image_url // Map image_url from DB to image property used in App
+          }));
+          setRooms(formattedRooms);
+        }
         if (roomsError) console.error('Error loading rooms:', roomsError);
 
         // ดึงข้อมูลการจอง
@@ -91,7 +142,8 @@ const App = () => {
             roomId: b.room_id,
             startTime: b.start_time ? b.start_time.slice(0, 5) : '', // ตัดวินาทีออกถ้ามี
             endTime: b.end_time ? b.end_time.slice(0, 5) : '',
-            bookedBy: b.booked_by
+            bookedBy: b.booked_by,
+            phone: b.contact
           }));
           setBookings(formattedBookings);
         }

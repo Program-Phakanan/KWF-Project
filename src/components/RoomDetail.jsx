@@ -15,6 +15,13 @@ const RoomDetail = ({
   setCurrentPage,
   currentUser
 }) => {
+  // ป้องกัน Error กรณีไม่มีข้อมูลห้อง
+  if (!selectedRoom) {
+    // ถ้าไม่มีข้อมูลห้อง ให้กลับหน้าแรกทันที (โดยปกติ App.jsx ควรจัดการเรื่องนี้)
+    React.useEffect(() => setCurrentPage('home'), [setCurrentPage]);
+    return null;
+  }
+
   const [selectedTimeSlots, setSelectedTimeSlots] = useState([]);
   const [bookingForm, setBookingForm] = useState({
     title: '',
@@ -255,7 +262,7 @@ const RoomDetail = ({
                       alt={selectedRoom.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/800x450?text=Meeting+Room';
+                        e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='450' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23e2e8f0'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='40' fill='%2364748b'%3EMeeting Room%3C/text%3E%3C/svg%3E";
                       }}
                     />
                   </div>
@@ -490,23 +497,23 @@ const RoomDetail = ({
                     key={time}
                     onClick={() => isAvailableAndFuture && toggleTimeSlot(time)}
                     disabled={!isAvailableAndFuture}
-                    className={'p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-medium transition-all transform hover:scale-105 ' + (
+                    className={'p-3 sm:p-4 rounded-xl text-xs sm:text-sm font-medium transition-all transform ' + (
                       isAvailableAndFuture
                         ? isSelected
-                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-2 ring-blue-300 shadow-lg'
-                          : 'bg-gradient-to-br from-green-50 to-green-100 text-green-700 hover:from-green-100 hover:to-green-200 border-2 border-green-200'
+                          ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white ring-2 ring-blue-300 shadow-lg scale-105'
+                          : 'bg-gradient-to-br from-green-50 to-green-100 text-green-700 hover:from-green-100 hover:to-green-200 border-2 border-green-200 hover:scale-105'
                         : isPastTime
-                          ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-2 border-gray-200'
-                          : 'bg-gradient-to-br from-red-50 to-red-100 text-red-700 cursor-not-allowed border-2 border-red-200'
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200'
+                          : 'bg-red-500 text-white cursor-not-allowed border-2 border-red-600 opacity-90 shadow-inner' // สีแดงชัดเจนสำหรับช่องที่ไม่ว่าง
                     )}
                     title={booking ? 'จองโดย: ' + booking.title : isPastTime ? 'เวลานี้ผ่านไปแล้ว' : ''}
                   >
                     <div className="font-bold text-sm sm:text-base">{time}</div>
                     <div className="text-xs mt-1 font-medium">
                       {isPastTime
-                        ? 'ผ่านเวลานี้ไปแล้ว'
+                        ? 'ผ่านแล้ว'
                         : available
-                          ? (isSelected ? '✓ เลือกแล้ว' : '◯ ว่าง')
+                          ? (isSelected ? '✓ เลือก' : '◯ ว่าง')
                           : '✗ ไม่ว่าง'}
                     </div>
                   </button>
@@ -556,27 +563,34 @@ const RoomDetail = ({
                 </h4>
                 <div className="space-y-3">
                   {dayBookings.map(booking => (
-                    <div key={booking.id} className="bg-gradient-to-r from-red-50 to-pink-50 p-3 sm:p-4 rounded-xl border-l-4 border-red-500 shadow-sm hover:shadow-md transition-shadow">
-                      <p className="font-semibold text-gray-800 text-sm sm:text-lg mb-2">{booking.title}</p>
-                      <div className="space-y-1 text-xs sm:text-sm text-gray-600">
-                        <p className="flex items-center gap-2">
-                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-                          <span className="font-medium">เวลา:</span> {booking.startTime} - {booking.endTime}
+                    <div key={booking.id} className="bg-red-50 p-3 sm:p-4 rounded-xl border-2 border-red-200 shadow-sm relative overflow-hidden group hover:border-red-400 transition-all">
+                      <div className="absolute top-0 right-0 bg-red-500 text-white text-xs px-2 py-1 rounded-bl-lg font-bold shadow-sm">
+                        ถูกจองแล้ว
+                      </div>
+                      <p className="font-bold text-red-800 text-sm sm:text-lg mb-2 pr-12">{booking.title}</p>
+                      <div className="space-y-1 text-xs sm:text-sm text-red-700">
+                        <p className="flex items-center gap-2 font-medium">
+                          <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-red-600" />
+                          <span className="bg-red-100 px-1.5 py-0.5 rounded text-red-800 border border-red-200">
+                            {booking.startTime} - {booking.endTime}
+                          </span>
                         </p>
                         <p className="flex items-center gap-2">
                           <Users className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-                          <span className="font-medium">ผู้จอง:</span> {booking.bookedBy} | โทร: {booking.phone}
+                          <span>ผู้จอง: {booking.bookedBy}</span>
+                          <span className="text-red-400">|</span>
+                          <span>โทร: {booking.phone}</span>
                         </p>
                         {booking.department && (
                           <p className="flex items-center gap-2">
                             <Building className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-                            <span className="font-medium">แผนก:</span> {booking.department}
+                            <span>แผนก: {booking.department}</span>
                           </p>
                         )}
                         {booking.attendees && (
                           <p className="flex items-center gap-2">
                             <Users className="w-3 h-3 sm:w-4 sm:h-4 text-red-500" />
-                            <span className="font-medium">ผู้เข้าร่วม:</span> {booking.attendees} คน
+                            <span>ผู้เข้าร่วม: {booking.attendees} คน</span>
                           </p>
                         )}
                       </div>

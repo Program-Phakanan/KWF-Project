@@ -1,14 +1,14 @@
 // ฟังก์ชันตรวจสอบว่าห้องว่างหรือไม่
 export const isRoomAvailable = (bookings, roomId, date, startTime, endTime, excludeBookingId = null) => {
   const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
-  const conflictBooking = bookings.find(b => 
-    b.roomId === roomId && 
-    b.date === dateStr && 
+  const conflictBooking = bookings.find(b =>
+    b.roomId === roomId &&
+    b.date === dateStr &&
     b.id !== excludeBookingId &&
-    b.status === 'confirmed' &&
+    (b.status === 'confirmed' || b.status === 'pending') &&
     ((startTime >= b.startTime && startTime < b.endTime) ||
-     (endTime > b.startTime && endTime <= b.endTime) ||
-     (startTime <= b.startTime && endTime >= b.endTime))
+      (endTime > b.startTime && endTime <= b.endTime) ||
+      (startTime <= b.startTime && endTime >= b.endTime))
   );
   return !conflictBooking;
 };
@@ -18,7 +18,7 @@ export const getStatistics = (bookings, rooms, departments) => {
   const today = new Date().toISOString().split('T')[0];
   const totalBookings = bookings.length;
   const todayBookings = bookings.filter(b => b.date === today).length;
-  
+
   // สถิติรายวัน (7 วันล่าสุด)
   const dailyStats = {};
   for (let i = 6; i >= 0; i--) {
